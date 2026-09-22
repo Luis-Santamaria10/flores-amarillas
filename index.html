@@ -20,6 +20,62 @@
             color: #fff;
         }
 
+        /* Pantalla de inicio para permitir el reproductor de audio en móviles */
+        #welcome-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #050508;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
+
+        #welcome-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        #welcome-overlay h2 {
+            font-family: 'Georgia', serif;
+            font-size: 2rem;
+            color: #ffea00;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px rgba(255, 234, 0, 0.8);
+        }
+
+        #welcome-overlay p {
+            color: #fff8e1;
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+
+        .start-btn {
+            background: #ffea00;
+            color: #000;
+            border: none;
+            padding: 15px 35px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(255, 234, 0, 0.8);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .start-btn:active {
+            transform: scale(0.95);
+        }
+
         #canvas-container {
             width: 100vw;
             height: 100vh;
@@ -55,6 +111,24 @@
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
 
+        /* Control de Audio flotante */
+        #music-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            background: rgba(255, 234, 0, 0.2);
+            border: 1.5px solid #ffea00;
+            color: #ffea00;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 15px rgba(255, 234, 0, 0.4);
+        }
+
         /* Modal para frases */
         .modal {
             position: fixed;
@@ -70,7 +144,7 @@
             text-align: center;
             max-width: 400px;
             width: 85%;
-            z-index: 10;
+            z-index: 30;
             opacity: 0;
             pointer-events: none;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -107,11 +181,6 @@
             cursor: pointer;
             color: #000;
             box-shadow: 0 0 20px rgba(255, 234, 0, 0.6);
-            transition: transform 0.2s;
-        }
-
-        .close-btn:hover {
-            transform: scale(1.05);
         }
 
         .hint {
@@ -143,6 +212,20 @@
 </head>
 <body>
 
+    <!-- Pantalla de Bienvenida (Garantiza reproducción de audio en celular) -->
+    <div id="welcome-overlay">
+        <h2>Un detalle especial para ti 🌻</h2>
+        <p>Toca el botón para abrir tu regalo</p>
+        <button class="start-btn" onclick="startExperience()">Ver Sorpresa ✨</button>
+    </div>
+
+    <!-- Elemento de Audio (Sube tu archivo como 'musica.mp3') -->
+    <audio id="bg-music" loop preload="auto">
+        <source src="Te_Imaginas.mp3" type="audio/mpeg">
+    </audio>
+
+    <button id="music-btn" onclick="toggleMusic()">🔊 Música</button>
+
     <div class="header-title">
         <h1>Feliz día de las flores amarillas</h1>
         <p>Ten tu ramo bonito ✨</p>
@@ -158,7 +241,41 @@
     </div>
 
     <script>
-        // --- 1. CONFIGURACIÓN DE LA ESCENA ---
+        // --- CONTROL DE AUDIO Y PANTALLA INICIAL ---
+        const music = document.getElementById('bg-music');
+        const musicBtn = document.getElementById('music-btn');
+        let isPlaying = false;
+
+        function startExperience() {
+            // Ocultar pantalla de bienvenida
+            document.getElementById('welcome-overlay').classList.add('hidden');
+            
+            // Iniciar Audio
+            music.play().then(() => {
+                isPlaying = true;
+                musicBtn.innerText = "🔊 Pausar";
+                musicBtn.style.background = "#ffea00";
+                musicBtn.style.color = "#000";
+            }).catch(e => console.log("Audio prevenido:", e));
+        }
+
+        function toggleMusic() {
+            if (isPlaying) {
+                music.pause();
+                musicBtn.innerText = "🎵 Música";
+                musicBtn.style.background = "rgba(255, 234, 0, 0.2)";
+                musicBtn.style.color = "#ffea00";
+            } else {
+                music.play().then(() => {
+                    musicBtn.innerText = "🔊 Pausar";
+                    musicBtn.style.background = "#ffea00";
+                    musicBtn.style.color = "#000";
+                });
+            }
+            isPlaying = !isPlaying;
+        }
+
+        // --- 1. CONFIGURACIÓN DE LA ESCENA 3D ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x050508, 0.015);
@@ -172,7 +289,7 @@
         renderer.toneMapping = THREE.ReinhardToneMapping;
         container.appendChild(renderer.domElement);
 
-        // Post-Procesamiento (Efecto Bloom / Brillo mágico)
+        // Post-Procesamiento (Bloom)
         const renderScene = new THREE.RenderPass(scene, camera);
         const bloomPass = new THREE.UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -191,7 +308,7 @@
         dirLight.position.set(5, 10, 7);
         scene.add(dirLight);
 
-        // --- 2. FONDO DE PARTÍCULAS BRILLANTES ---
+        // --- 2. FONDO DE PARTÍCULAS ---
         const particleCount = 1500;
         const partGeo = new THREE.BufferGeometry();
         const partPos = new Float32Array(particleCount * 3);
@@ -213,12 +330,11 @@
         const particles = new THREE.Points(partGeo, partMat);
         scene.add(particles);
 
-        // --- 3. CREACIÓN DEL RAMO DE GIRASOLES Y PAPEL DE ENVOLTORIO ---
+        // --- 3. RAMO DE GIRASOLES Y ENVOLTORIO ---
         const bouquetGroup = new THREE.Group();
         bouquetGroup.position.set(0, -3, 0);
         scene.add(bouquetGroup);
 
-        // Textura para flores
         function createFlowerTexture() {
             const canvas = document.createElement('canvas');
             canvas.width = 256;
@@ -231,7 +347,6 @@
         }
         const flowerTexture = createFlowerTexture();
 
-        // Construir ramillete de girasoles
         const flowerPositions = [
             [0, 6, 0], [-2.2, 5, 1], [2.2, 5, 1],
             [-1.2, 7.2, -0.5], [1.2, 7.2, -0.5], [0, 8.2, -1],
@@ -246,7 +361,7 @@
             bouquetGroup.add(sprite);
         });
 
-        // Envoltorio del Ramo (Cono transparente rosado/púrpura)
+        // Envoltorio
         const wrapperGeo = new THREE.ConeGeometry(5.5, 9, 16, 1, true);
         const wrapperMat = new THREE.MeshPhongMaterial({
             color: 0xd81b60,
@@ -261,7 +376,7 @@
         wrapper.rotation.x = Math.PI;
         bouquetGroup.add(wrapper);
 
-        // Listón
+        // Moño
         const ribbonGeo = new THREE.TorusGeometry(1.8, 0.25, 16, 32);
         const ribbonMat = new THREE.MeshBasicMaterial({ color: 0xffeb3b });
         const ribbon = new THREE.Mesh(ribbonGeo, ribbonMat);
@@ -269,11 +384,10 @@
         ribbon.rotation.x = Math.PI / 2;
         bouquetGroup.add(ribbon);
 
-        // --- 4. MARIPOSAS MULTICOLORES FLOTANTES ---
+        // --- 4. MARIPOSAS ---
         const butterflyGroup = new THREE.Group();
         scene.add(butterflyGroup);
 
-        const butterflyColors = ['🦋', '🦋', '🦋', '🦋', '🦋'];
         const butterflyPalette = ['#00e5ff', '#ff4081', '#76ff03', '#ffeb3b', '#e040fb'];
 
         function createButterflyTexture(colorHex) {
@@ -323,7 +437,7 @@
             butterflies.push(sprite);
         }
 
-        // --- 5. FRASES ROMÁNTICAS FLOTANTES ---
+        // --- 5. FRASES FLOTANTES ---
         const phrases = [
             "Siempre pienso en ti 💕",
             "Tu sonrisa ilumina todo ☀️",
@@ -390,15 +504,12 @@
             requestAnimationFrame(animate);
             const t = clock.getElapsedTime();
 
-            // Rotación general suave
             phraseGroup.rotation.y = t * 0.05;
             particles.rotation.y = -t * 0.02;
 
-            // Animación del Ramo (balanceo)
             bouquetGroup.rotation.z = Math.sin(t * 1.5) * 0.05;
             bouquetGroup.position.y = -3 + Math.sin(t * 2) * 0.3;
 
-            // Movimiento de las mariposas
             butterflies.forEach((b) => {
                 b.userData.angle += 0.01 * b.userData.speed;
                 b.position.x = Math.cos(b.userData.angle) * b.userData.radius;
@@ -406,12 +517,10 @@
                 b.position.y = b.userData.posY + Math.sin(t * 2.5 + b.userData.amplitude) * b.userData.amplitude;
             });
 
-            // Flotación de frases
             clickablePhrases.forEach((p) => {
                 p.position.y = p.userData.baseY + Math.sin(t * 1.8 + p.userData.index) * 0.5;
             });
 
-            // Reacción de cámara al ratón
             camera.position.x += (mouseX * 20 - camera.position.x) * 0.05;
             camera.position.y += (-mouseY * 20 + 2 - camera.position.y) * 0.05;
             camera.lookAt(0, 0, 0);
@@ -420,13 +529,23 @@
         }
         animate();
 
-        // --- DETECCIÓN DE CLICS ---
+        // --- DETECCIÓN DE CLICS / TOQUES (COMPATIBLE CON MÓVIL) ---
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
-        window.addEventListener('click', (event) => {
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        function handleInteraction(event) {
+            let clientX, clientY;
+
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(clickablePhrases);
@@ -435,7 +554,10 @@
                 const text = intersects[0].object.userData.text;
                 openModal("Mensaje Especial 💛", text);
             }
-        });
+        }
+
+        window.addEventListener('click', handleInteraction);
+        window.addEventListener('touchstart', handleInteraction);
 
         function openModal(title, message) {
             document.getElementById('cardTitle').innerText = title;
