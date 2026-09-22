@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feliz Día de las Flores Amarillas 🌻🦋</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050508;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Encabezado del video */
+        .header-title {
+            position: absolute;
+            top: 30px;
+            width: 100%;
+            text-align: center;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .header-title h1 {
+            font-family: 'Georgia', serif;
+            font-size: 2.2rem;
+            color: #ffea00;
+            text-shadow: 0 0 20px rgba(255, 234, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4);
+            letter-spacing: 1px;
+        }
+
+        .header-title p {
+            font-size: 1.1rem;
+            color: #fff8e1;
+            font-style: italic;
+            margin-top: 5px;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Modal para frases */
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.7);
+            background: rgba(20, 15, 5, 0.9);
+            backdrop-filter: blur(15px);
+            color: #fffbe6;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
+            text-align: center;
+            max-width: 400px;
+            width: 85%;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1.5px solid #ffea00;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .modal h2 {
+            font-size: 1.8rem;
+            margin-bottom: 12px;
+            color: #ffea00;
+            text-shadow: 0 0 10px #ffea00;
+        }
+
+        .modal p {
+            font-size: 1.05rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            color: #fff8e1;
+        }
+
+        .close-btn {
+            background: #ffea00;
+            border: none;
+            padding: 10px 25px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 234, 0, 0.6);
+            transition: transform 0.2s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .hint {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(255, 235, 59, 0.8);
+            z-index: 2;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 235, 59, 0.8);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+</head>
+<body>
+
+    <div class="header-title">
+        <h1>Feliz día de las flores amarillas</h1>
+        <p>Ten tu ramo bonito ✨</p>
+    </div>
+
+    <div id="canvas-container"></div>
+    <div class="hint">✨ Toca las mariposas y frases flotantes ✨</div>
+
+    <div class="modal" id="cardModal">
+        <h2 id="cardTitle">Para Ti 💛</h2>
+        <p id="cardText">Gracias por ser la luz de cada día.</p>
+        <button class="close-btn" onclick="closeModal()">Cerrar ✨</button>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURACIÓN DE LA ESCENA ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050508, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        container.appendChild(renderer.domElement);
+
+        // Post-Procesamiento (Efecto Bloom / Brillo mágico)
+        const renderScene = new THREE.RenderPass(scene, camera);
+        const bloomPass = new THREE.UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.4, 0.4, 0.2
+        );
+
+        const composer = new THREE.EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // Luces
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffea00, 1.5);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        // --- 2. FONDO DE PARTÍCULAS BRILLANTES ---
+        const particleCount = 1500;
+        const partGeo = new THREE.BufferGeometry();
+        const partPos = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            partPos[i] = (Math.random() - 0.5) * 60;
+            partPos[i + 1] = (Math.random() - 0.5) * 40;
+            partPos[i + 2] = (Math.random() - 0.5) * 40;
+        }
+
+        partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
+        const partMat = new THREE.PointsMaterial({
+            size: 0.18,
+            color: 0xffea00,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+        const particles = new THREE.Points(partGeo, partMat);
+        scene.add(particles);
+
+        // --- 3. CREACIÓN DEL RAMO DE GIRASOLES Y PAPEL DE ENVOLTORIO ---
+        const bouquetGroup = new THREE.Group();
+        bouquetGroup.position.set(0, -3, 0);
+        scene.add(bouquetGroup);
+
+        // Textura para flores
+        function createFlowerTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.font = '120px serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🌻', 128, 160);
+            return new THREE.CanvasTexture(canvas);
+        }
+        const flowerTexture = createFlowerTexture();
+
+        // Construir ramillete de girasoles
+        const flowerPositions = [
+            [0, 6, 0], [-2.2, 5, 1], [2.2, 5, 1],
+            [-1.2, 7.2, -0.5], [1.2, 7.2, -0.5], [0, 8.2, -1],
+            [-3.2, 3.5, 1.5], [3.2, 3.5, 1.5], [0, 4.2, 2]
+        ];
+
+        flowerPositions.forEach(pos => {
+            const mat = new THREE.SpriteMaterial({ map: flowerTexture, transparent: true });
+            const sprite = new THREE.Sprite(mat);
+            sprite.position.set(pos[0], pos[1], pos[2]);
+            sprite.scale.set(4.8, 4.8, 1);
+            bouquetGroup.add(sprite);
+        });
+
+        // Envoltorio del Ramo (Cono transparente rosado/púrpura)
+        const wrapperGeo = new THREE.ConeGeometry(5.5, 9, 16, 1, true);
+        const wrapperMat = new THREE.MeshPhongMaterial({
+            color: 0xd81b60,
+            emissive: 0x880e4f,
+            transparent: true,
+            opacity: 0.85,
+            side: THREE.DoubleSide,
+            shininess: 80
+        });
+        const wrapper = new THREE.Mesh(wrapperGeo, wrapperMat);
+        wrapper.position.set(0, 1.2, 0);
+        wrapper.rotation.x = Math.PI;
+        bouquetGroup.add(wrapper);
+
+        // Listón
+        const ribbonGeo = new THREE.TorusGeometry(1.8, 0.25, 16, 32);
+        const ribbonMat = new THREE.MeshBasicMaterial({ color: 0xffeb3b });
+        const ribbon = new THREE.Mesh(ribbonGeo, ribbonMat);
+        ribbon.position.set(0, 2.2, 1);
+        ribbon.rotation.x = Math.PI / 2;
+        bouquetGroup.add(ribbon);
+
+        // --- 4. MARIPOSAS MULTICOLORES FLOTANTES ---
+        const butterflyGroup = new THREE.Group();
+        scene.add(butterflyGroup);
+
+        const butterflyColors = ['🦋', '🦋', '🦋', '🦋', '🦋'];
+        const butterflyPalette = ['#00e5ff', '#ff4081', '#76ff03', '#ffeb3b', '#e040fb'];
+
+        function createButterflyTexture(colorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.font = '80px serif';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = colorHex;
+            ctx.shadowBlur = 12;
+            ctx.fillText('🦋', 64, 90);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const butterflies = [];
+        const butterflyCount = 22;
+
+        for (let i = 0; i < butterflyCount; i++) {
+            const color = butterflyPalette[i % butterflyPalette.length];
+            const tex = createButterflyTexture(color);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+            const sprite = new THREE.Sprite(mat);
+
+            const radius = 6 + Math.random() * 12;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.5 + Math.random() * 1.2;
+
+            sprite.position.set(
+                Math.cos(angle) * radius,
+                (Math.random() - 0.5) * 14,
+                Math.sin(angle) * radius
+            );
+            
+            const scale = 2.0 + Math.random() * 1.5;
+            sprite.scale.set(scale, scale, 1);
+
+            sprite.userData = {
+                radius: radius,
+                angle: angle,
+                speed: speed,
+                posY: sprite.position.y,
+                amplitude: 0.8 + Math.random() * 1.2
+            };
+
+            butterflyGroup.add(sprite);
+            butterflies.push(sprite);
+        }
+
+        // --- 5. FRASES ROMÁNTICAS FLOTANTES ---
+        const phrases = [
+            "Siempre pienso en ti 💕",
+            "Tu sonrisa ilumina todo ☀️",
+            "Eres mi sol de cada día 🌻",
+            "Quiero mil días contigo 🥰",
+            "Eres mi paz y mi alegría ✨",
+            "Gracias por existir 👑",
+            "Te quiero muchísimo 💛",
+            "Mi lugar favorito eres tú ♾️"
+        ];
+
+        const phraseGroup = new THREE.Group();
+        scene.add(phraseGroup);
+        const clickablePhrases = [];
+
+        function createPhraseTexture(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'bold 28px Sans-Serif';
+            ctx.fillStyle = '#ffea00';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#000000';
+            ctx.shadowBlur = 10;
+            ctx.fillText(text, 256, 70);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        phrases.forEach((text, index) => {
+            const tex = createPhraseTexture(text);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+            const sprite = new THREE.Sprite(mat);
+
+            const angle = (index / phrases.length) * Math.PI * 2;
+            const radius = 13;
+            const posX = Math.cos(angle) * radius;
+            const posZ = Math.sin(angle) * radius;
+            const posY = (Math.random() - 0.5) * 10;
+
+            sprite.position.set(posX, posY, posZ);
+            sprite.scale.set(7, 1.75, 1);
+
+            sprite.userData = {
+                text: text,
+                baseY: posY,
+                index: index
+            };
+
+            phraseGroup.add(sprite);
+            clickablePhrases.push(sprite);
+        });
+
+        // --- 6. ANIMACIÓN Y CONTROLES ---
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX - window.innerWidth / 2) * 0.0008;
+            mouseY = (e.clientY - window.innerHeight / 2) * 0.0008;
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+
+            // Rotación general suave
+            phraseGroup.rotation.y = t * 0.05;
+            particles.rotation.y = -t * 0.02;
+
+            // Animación del Ramo (balanceo)
+            bouquetGroup.rotation.z = Math.sin(t * 1.5) * 0.05;
+            bouquetGroup.position.y = -3 + Math.sin(t * 2) * 0.3;
+
+            // Movimiento de las mariposas
+            butterflies.forEach((b) => {
+                b.userData.angle += 0.01 * b.userData.speed;
+                b.position.x = Math.cos(b.userData.angle) * b.userData.radius;
+                b.position.z = Math.sin(b.userData.angle) * b.userData.radius;
+                b.position.y = b.userData.posY + Math.sin(t * 2.5 + b.userData.amplitude) * b.userData.amplitude;
+            });
+
+            // Flotación de frases
+            clickablePhrases.forEach((p) => {
+                p.position.y = p.userData.baseY + Math.sin(t * 1.8 + p.userData.index) * 0.5;
+            });
+
+            // Reacción de cámara al ratón
+            camera.position.x += (mouseX * 20 - camera.position.x) * 0.05;
+            camera.position.y += (-mouseY * 20 + 2 - camera.position.y) * 0.05;
+            camera.lookAt(0, 0, 0);
+
+            composer.render();
+        }
+        animate();
+
+        // --- DETECCIÓN DE CLICS ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(clickablePhrases);
+
+            if (intersects.length > 0) {
+                const text = intersects[0].object.userData.text;
+                openModal("Mensaje Especial 💛", text);
+            }
+        });
+
+        function openModal(title, message) {
+            document.getElementById('cardTitle').innerText = title;
+            document.getElementById('cardText').innerText = message;
+            document.getElementById('cardModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('cardModal').classList.remove('active');
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
